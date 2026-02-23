@@ -12,7 +12,7 @@ const SOURCES: Array<{ value: IntegrationSource; label: string }> = [
 const DEFAULT_SINCE = () => {
   const d = new Date();
   d.setDate(d.getDate() - 14);
-  return d.toISOString().split("T")[0];
+  return d.toISOString().substring(0, 10); // "YYYY-MM-DD" — substring always returns string
 };
 
 export default function SelectTickets() {

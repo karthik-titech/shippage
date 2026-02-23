@@ -139,11 +139,13 @@ export function renderTemplate(
   const templatePath = resolveTemplatePath(templateName);
   const templateSource = fs.readFileSync(templatePath, "utf-8");
 
-  const template = Handlebars.compile(templateSource, {
-    // Prevent prototype pollution attacks via template context
+  const template = Handlebars.compile(templateSource);
+
+  // allowProtoPropertiessByDefault/allowProtoMethodsByDefault are RuntimeOptions,
+  // not CompileOptions — they belong on the template call, not compile().
+  // Disabling both prevents prototype pollution attacks via template context.
+  return template(context, {
     allowProtoPropertiesByDefault: false,
     allowProtoMethodsByDefault: false,
   });
-
-  return template(context);
 }

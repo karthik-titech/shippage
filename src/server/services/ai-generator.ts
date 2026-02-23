@@ -15,12 +15,11 @@ import type { NormalizedTicket, GeneratedReleasePage } from "../../shared/types.
 // Token budget:
 //   - Input: ~100 tokens per ticket × 30 tickets = ~3,000 tokens
 //   - Output: 8,192 max (may still be insufficient for very large releases)
-//   - Model: claude-sonnet-4-20250514 (configurable)
+//   - Model: claude-sonnet-4-6 (configurable)
 //
-// NOTE: Model IDs like "claude-sonnet-4-20250514" are dated and will
-// eventually be deprecated. Users should update their config when
-// Anthropic announces model deprecations. We log a warning if the
-// model string looks like it might be outdated.
+// NOTE: Dated model IDs like "claude-sonnet-4-20250514" will eventually
+// be deprecated. The default is now "claude-sonnet-4-6". If the API
+// returns a 404, we surface a clear error telling the user to update.
 // ----------------------------------------------------------------
 
 export interface GenerationOptions {
@@ -199,18 +198,31 @@ export async function generateReleasePage(options: GenerationOptions): Promise<G
         ? "\n\nCRITICAL: Your previous response was not valid JSON. Return ONLY a JSON object, nothing else."
         : "";
 
-    const message = await client.messages.create({
-      model: options.model,
-      max_tokens: 8192,
-      temperature: 0.3,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: prompt + stricterSuffix,
-        },
-      ],
-    });
+    let message: Awaited<ReturnType<typeof client.messages.create>>;
+    try {
+      message = await client.messages.create({
+        model: options.model,
+        max_tokens: 8192,
+        temperature: 0.3,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: prompt + stricterSuffix,
+          },
+        ],
+      });
+    } catch (err) {
+      if (err instanceof Anthropic.NotFoundError) {
+        throw new Error(
+          `Model "${options.model}" was not found — it may have been deprecated by Anthropic.\n` +
+            `Update the model in your config:\n\n  shippage init  (re-run setup)\n\n` +
+            `Or set it manually in ~/.config/shippage/config.json under "ai.model".\n` +
+            `Current supported models: claude-sonnet-4-6, claude-haiku-4-5-20251001`
+        );
+      }
+      throw err;
+    }
 
     const durationMs = Date.now() - startMs;
     const tokensInput = message.usage.input_tokens;

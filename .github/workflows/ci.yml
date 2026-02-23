@@ -68,9 +68,11 @@ jobs:
         # Security failures must block the build.
 
       - name: Run Snyk vulnerability scan
+        # Only runs when SNYK_TOKEN is set in repo secrets.
+        # Add it at: Settings → Secrets → Actions → SNYK_TOKEN
+        # Until configured, npm audit (above) is the active security gate.
+        if: ${{ secrets.SNYK_TOKEN != '' }}
         uses: snyk/actions/node@master
-        # NOTE: Snyk failures block the build (no continue-on-error).
-        # Configure SNYK_TOKEN in repo secrets.
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:

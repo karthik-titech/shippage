@@ -3,8 +3,8 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "outDir": "./dist/server",
-    "rootDir": "./src/server",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "lib": ["ES2022"],
     "composite": true
   },

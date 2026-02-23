@@ -4,10 +4,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "outDir": "./dist/client",
-    "rootDir": "./src/client",
+    "rootDir": "./src",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "composite": true
+    "jsx": "react-jsx"
   },
   "include": ["src/client/**/*", "src/shared/**/*"],
   "exclude": ["node_modules", "dist"]

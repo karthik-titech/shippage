@@ -6,7 +6,7 @@ import { githubClient } from "../services/github.js";
 import { jiraClient } from "../services/jira.js";
 import type { IntegrationSource, NormalizedTicket } from "../../shared/types.js";
 
-export const integrationsRouter = Router();
+export const integrationsRouter: Router = Router();
 
 // GET /api/integrations/status
 // Returns which integrations are configured (no secrets)

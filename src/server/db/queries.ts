@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import sanitizeHtml from "sanitize-html";
 import { getDb } from "./index.js";
 import type {
   Release,
@@ -157,6 +158,7 @@ export function updateRelease(
   data: {
     title?: string;
     version?: string;
+    templateUsed?: string;
     generatedContent?: GeneratedReleasePage;
     generatedHtml?: string;
     outputPath?: string;
@@ -169,6 +171,7 @@ export function updateRelease(
 
   if (data.title !== undefined) { fields.push("title = ?"); params.push(data.title); }
   if (data.version !== undefined) { fields.push("version = ?"); params.push(data.version); }
+  if (data.templateUsed !== undefined) { fields.push("template_used = ?"); params.push(data.templateUsed); }
   if (data.generatedContent !== undefined) {
     fields.push("generated_content = ?");
     params.push(JSON.stringify(data.generatedContent));
@@ -207,6 +210,17 @@ export function snapshotTickets(releaseId: string, tickets: NormalizedTicket[]):
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
+  // Sanitize ticket HTML before storage.
+  // Ticket titles/descriptions come from external APIs (user-controlled).
+  // Strip all HTML tags — we only want plain text in the DB.
+  // This prevents stored XSS if description content is ever rendered
+  // outside of a React JSX context (e.g. in a template or email).
+  const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+    allowedTags: [],        // strip ALL HTML tags
+    allowedAttributes: {},  // strip all attributes
+    disallowedTagsMode: "discard",
+  };
+
   const insertMany = db.transaction((ticketList: NormalizedTicket[]) => {
     for (const ticket of ticketList) {
       insert.run(
@@ -214,9 +228,9 @@ export function snapshotTickets(releaseId: string, tickets: NormalizedTicket[]):
         releaseId,
         ticket.externalId,
         ticket.source,
-        ticket.title,
-        ticket.description,
-        JSON.stringify(ticket.labels),
+        sanitizeHtml(ticket.title, SANITIZE_OPTIONS),
+        ticket.description ? sanitizeHtml(ticket.description, SANITIZE_OPTIONS) : null,
+        JSON.stringify(ticket.labels.map((l) => sanitizeHtml(l, SANITIZE_OPTIONS))),
         ticket.assignee,
         ticket.status,
         ticket.url,

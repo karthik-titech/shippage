@@ -108,8 +108,7 @@ export async function getSecret(account: keyof typeof KEYTAR_ACCOUNTS): Promise<
       `This is less secure. Install build tools and reinstall to enable keychain storage.`
   );
   const config = readConfig();
-  // @ts-expect-error - legacy plaintext fallback only
-  return (config as Record<string, unknown>)[`_plaintext_${accountName}`] as string | null ?? null;
+  return ((config as Record<string, unknown>)[`_plaintext_${accountName}`] ?? null) as string | null;
 }
 
 export async function setSecret(
@@ -130,7 +129,6 @@ export async function setSecret(
       `Ensure this file is not committed to version control.`
   );
   const config = readConfig();
-  // @ts-expect-error - legacy plaintext fallback
   (config as Record<string, unknown>)[`_plaintext_${accountName}`] = value;
   writeConfig(config);
 }

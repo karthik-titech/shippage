@@ -10,7 +10,7 @@ import {
 } from "../db/queries.js";
 import type { GeneratedReleasePage, ReleaseStatus } from "../../shared/types.js";
 
-export const releasesRouter = Router();
+export const releasesRouter: Router = Router();
 
 // GET /api/releases
 releasesRouter.get("/", (req, res) => {

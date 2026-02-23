@@ -36,7 +36,7 @@ function PasswordInput({
   );
 }
 
-function ConnectionStatus({ status }: { status: "idle" | "testing" | "ok" | "error"; error?: string }) {
+function ConnectionStatus({ status, error }: { status: "idle" | "testing" | "ok" | "error"; error?: string }) {
   if (status === "idle") return null;
   if (status === "testing") return <span className="text-sm text-gray-500">Testing...</span>;
   if (status === "ok") return <span className="text-sm text-green-600">✓ Connected</span>;

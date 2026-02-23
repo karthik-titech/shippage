@@ -33,7 +33,7 @@ const JiraConfigSchema = z.object({
 
 const AiConfigSchema = z.object({
   provider: z.literal("anthropic"),
-  model: z.string().default("claude-sonnet-4-20250514"),
+  model: z.string().default("claude-sonnet-4-6"),
 });
 
 const PreferencesSchema = z.object({
@@ -70,7 +70,7 @@ export const DEFAULT_CONFIG: ValidatedConfig = {
   integrations: {},
   ai: {
     provider: "anthropic",
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
   },
   preferences: {
     defaultTemplate: "minimal",

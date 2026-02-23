@@ -229,30 +229,29 @@ export const linearClient = {
     pat: string,
     options: { projectId?: string; since?: Date; limit?: number }
   ): Promise<NormalizedTicket[]> {
+    type TeamResponse = { team: { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } } };
+    type IssuesResponse = { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } };
+
     const tickets: NormalizedTicket[] = [];
     const pageSize = Math.min(options.limit ?? 50, 100);
     let cursor: string | null = null;
 
     do {
-      const data = await withExponentialBackoff(() => {
+      const data = await withExponentialBackoff<TeamResponse | IssuesResponse>(() => {
         if (options.projectId) {
-          return graphqlRequest<{
-            team: { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } };
-          }>(pat, TEAM_ISSUES_QUERY, {
+          return graphqlRequest<TeamResponse>(pat, TEAM_ISSUES_QUERY, {
             teamId: options.projectId,
             first: pageSize,
             after: cursor,
           });
         } else {
-          return graphqlRequest<{
-            issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo };
-          }>(pat, ISSUES_QUERY, { first: pageSize, after: cursor });
+          return graphqlRequest<IssuesResponse>(pat, ISSUES_QUERY, { first: pageSize, after: cursor });
         }
       });
 
       const result = options.projectId
-        ? (data as { team: { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } } }).team.issues
-        : (data as { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } }).issues;
+        ? (data as TeamResponse).team.issues
+        : (data as IssuesResponse).issues;
 
       for (const issue of result.nodes) {
         if (options.since && issue.completedAt) {

@@ -1,0 +1,10 @@
+# Dropbox: do not sync these directories.
+# node_modules can contain hundreds of thousands of files and will
+# destroy Dropbox performance and eat your storage quota.
+node_modules/
+dist/
+.pnpm-store/
+playwright-report/
+test-results/
+coverage/
+*.tsbuildinfo

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readConfig, writeConfig, setSecret, getSecretStatus } from "../config/store.js";
 import { ShipPageConfigSchema } from "../config/schema.js";
 
-export const configRouter = Router();
+export const configRouter: Router = Router();
 
 // GET /api/config
 // Returns config with all secrets redacted

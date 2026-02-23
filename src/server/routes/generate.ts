@@ -10,7 +10,7 @@ import { jiraClient } from "../services/jira.js";
 import { getPatForSource } from "../config/store.js";
 import type { IntegrationSource, NormalizedTicket } from "../../shared/types.js";
 
-export const generateRouter = Router();
+export const generateRouter: Router = Router();
 
 // POST /api/generate
 const generateSchema = z.object({

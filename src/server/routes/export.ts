@@ -4,7 +4,7 @@ import { getRelease } from "../db/queries.js";
 import { exportRelease } from "../services/html-exporter.js";
 import { listAvailableTemplates } from "../services/template-engine.js";
 
-export const exportRouter = Router();
+export const exportRouter: Router = Router();
 
 // POST /api/export
 const exportSchema = z.object({

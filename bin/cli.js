@@ -16,6 +16,21 @@ if (major < 18) {
   process.exit(1);
 }
 
+// Guard: ensure the project has been built before running
+import { existsSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const distEntry = join(__dirname, "../dist/server/index.js");
+
+if (!existsSync(distEntry)) {
+  console.error(
+    "\nShipPage is not built yet. Run:\n\n  pnpm install && pnpm build\n\nthen try again.\n"
+  );
+  process.exit(1);
+}
+
 // Dynamic import of the TypeScript-compiled server
 // (compiled to dist/server/ by `pnpm build`)
 async function main() {
