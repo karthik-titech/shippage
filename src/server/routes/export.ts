@@ -1,0 +1,66 @@
+import { Router } from "express";
+import { z } from "zod";
+import { getRelease } from "../db/queries.js";
+import { exportRelease } from "../services/html-exporter.js";
+import { listAvailableTemplates } from "../services/template-engine.js";
+
+export const exportRouter = Router();
+
+// POST /api/export
+const exportSchema = z.object({
+  releaseId: z.string().uuid("Invalid release ID format."),
+  mode: z.enum(["single-file", "folder"]).default("single-file"),
+});
+
+exportRouter.post("/", async (req, res) => {
+  const parsed = exportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request.", details: parsed.error.flatten() });
+    return;
+  }
+
+  const release = getRelease(parsed.data.releaseId);
+  if (!release) {
+    res.status(404).json({ error: "Release not found." });
+    return;
+  }
+
+  if (!release.generatedHtml) {
+    res.status(400).json({ error: "Release has no generated HTML. Generate it first." });
+    return;
+  }
+
+  try {
+    const result = await exportRelease(release, parsed.data.mode);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Export failed.";
+    res.status(500).json({ error: message });
+  }
+});
+
+// GET /api/export/templates
+exportRouter.get("/templates", (_req, res) => {
+  const templates = listAvailableTemplates();
+  res.json({ templates });
+});
+
+// GET /api/export/:releaseId/html
+// Returns the raw HTML for a release (for clipboard copy or preview)
+exportRouter.get("/:releaseId/html", (req, res) => {
+  const { releaseId } = req.params;
+  const release = getRelease(releaseId);
+
+  if (!release) {
+    res.status(404).json({ error: "Release not found." });
+    return;
+  }
+
+  if (!release.generatedHtml) {
+    res.status(404).json({ error: "No HTML generated yet." });
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(release.generatedHtml);
+});

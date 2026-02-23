@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{headline}} — {{companyName}}</title>
+  <meta name="description" content="{{intro}}">
+  <meta property="og:title" content="{{headline}}">
+  <meta property="og:description" content="{{intro}}">
+  <meta property="og:type" content="article">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --brand: {{brandColor}};
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.7;
+      margin: 0;
+      padding: 0;
+    }
+    .container { max-width: 720px; margin: 0 auto; padding: 48px 24px; }
+    header { margin-bottom: 56px; }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brand);
+      background: color-mix(in srgb, var(--brand) 10%, white);
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin: 0 0 16px; letter-spacing: -0.03em; }
+    .intro { font-size: 1.125rem; color: var(--muted); max-width: 600px; }
+    .date { font-size: 0.875rem; color: var(--muted); margin-top: 12px; }
+    section { margin: 48px 0; }
+    h2 { font-size: 1.125rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8125rem; margin: 0 0 24px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+    .item { margin-bottom: 32px; }
+    .item h3 { font-size: 1.0625rem; font-weight: 600; margin: 0 0 8px; }
+    .item p { margin: 0; color: #374151; }
+    .media { margin-top: 16px; border-radius: 8px; overflow: hidden; background: var(--border); }
+    .media img { width: 100%; height: auto; display: block; }
+    .media .placeholder {
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+    }
+    .cta-section { margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--border); }
+    .cta-btn {
+      display: inline-block;
+      background: var(--brand);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      transition: opacity 0.15s;
+    }
+    .cta-btn:hover { opacity: 0.85; }
+    footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.8125rem; color: var(--muted); }
+    {{#if logoUrl}}.logo { height: 32px; margin-bottom: 24px; }{{/if}}
+    @media (max-width: 600px) { h1 { font-size: 1.75rem; } .container { padding: 32px 16px; } }
+    @media print {
+      .cta-btn { border: 2px solid var(--brand); color: var(--brand); background: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      {{#if logoUrl}}<img class="logo" src="{{logoUrl}}" alt="{{companyName}} logo">{{/if}}
+      <div class="badge">{{version}} · {{formatDate date}}</div>
+      <h1>{{headline}}</h1>
+      <p class="intro">{{intro}}</p>
+    </header>
+
+    {{#each sections}}
+    {{#unless @first}}<hr>{{/unless}}
+    <section>
+      <h2>{{title}}</h2>
+      {{#each items}}
+      <div class="item">
+        <h3>{{title}}</h3>
+        <p>{{description}}</p>
+        {{#each media}}
+        <div class="media">
+          {{#eq type "image"}}
+            {{#if url}}
+              <img src="{{url}}" alt="{{alt}}" loading="lazy">
+            {{else}}
+              <div class="placeholder">📸 {{alt}}</div>
+            {{/if}}
+          {{/eq}}
+          {{#eq type "video"}}
+            <div class="placeholder">🎬 {{alt}}</div>
+          {{/eq}}
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+    </section>
+    {{/each}}
+
+    <div class="cta-section">
+      <a href="{{cta.url}}" class="cta-btn">{{cta.text}}</a>
+    </div>
+
+    {{#if footer}}
+    <footer>{{footer}}</footer>
+    {{/if}}
+  </div>
+</body>
+</html>

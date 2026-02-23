@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{headline}} — {{companyName}}</title>
+  <meta name="description" content="{{intro}}">
+  <meta property="og:title" content="{{headline}}">
+  <meta property="og:description" content="{{intro}}">
+  <meta property="og:type" content="website">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --brand: {{brandColor}};
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: #ffffff;
+      margin: 0;
+      line-height: 1.6;
+    }
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 6%, white), color-mix(in srgb, var(--brand) 12%, white));
+      padding: 80px 24px 72px;
+      text-align: center;
+    }
+    .hero-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--brand);
+      border: 1.5px solid var(--brand);
+      padding: 4px 14px;
+      border-radius: 100px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      max-width: 720px;
+      margin: 0 auto 24px;
+    }
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+    .hero-cta {
+      display: inline-block;
+      background: var(--brand);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 35%, transparent);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .hero-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 40%, transparent); }
+    /* Features grid */
+    .features { max-width: 1100px; margin: 80px auto; padding: 0 24px; }
+    .section-title { text-align: center; margin-bottom: 48px; }
+    .section-title h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+    .section-title p { color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin-bottom: 64px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      background: #fff;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+    .card h3 { font-size: 1.0625rem; font-weight: 600; margin: 0 0 10px; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+    .card .media { margin-top: 16px; border-radius: 8px; overflow: hidden; background: var(--border); }
+    .card .media img { width: 100%; height: auto; display: block; }
+    .media-placeholder { height: 160px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.875rem; background: #f8fafc; border: 2px dashed var(--border); border-radius: 8px; }
+    /* CTA section */
+    .cta-section { background: var(--brand); color: white; padding: 80px 24px; text-align: center; }
+    .cta-section h2 { font-size: 2rem; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.02em; }
+    .cta-section p { opacity: 0.85; max-width: 480px; margin: 0 auto 32px; font-size: 1.0625rem; }
+    .cta-section a { display: inline-block; background: white; color: var(--brand); padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 1rem; }
+    footer { text-align: center; padding: 32px 24px; font-size: 0.8125rem; color: var(--muted); border-top: 1px solid var(--border); }
+    @media (max-width: 600px) { .hero { padding: 56px 16px 48px; } .cards { grid-template-columns: 1fr; } }
+    @media print { .hero-cta, .cta-section { background: none; color: var(--text); border: 2px solid var(--brand); border-radius: 8px; } }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    {{#if logoUrl}}<img src="{{logoUrl}}" alt="{{companyName}}" style="height:32px; margin-bottom:32px; display:block; margin-left:auto; margin-right:auto;">{{/if}}
+    <div class="hero-tag">{{version}} · {{formatDate date}}</div>
+    <h1>{{headline}}</h1>
+    <p>{{intro}}</p>
+    <a href="{{cta.url}}" class="hero-cta">{{cta.text}}</a>
+  </section>
+
+  <div class="features">
+    {{#each sections}}
+    <div class="section-title">
+      <h2>{{title}}</h2>
+    </div>
+    <div class="cards">
+      {{#each items}}
+      <div class="card">
+        <h3>{{title}}</h3>
+        <p>{{description}}</p>
+        {{#each media}}
+        <div class="media">
+          {{#eq type "image"}}
+            {{#if url}}
+              <img src="{{url}}" alt="{{alt}}" loading="lazy">
+            {{else}}
+              <div class="media-placeholder">📸 {{alt}}</div>
+            {{/if}}
+          {{/eq}}
+          {{#eq type "video"}}
+            <div class="media-placeholder">🎬 {{alt}}</div>
+          {{/eq}}
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
+    {{/each}}
+  </div>
+
+  <section class="cta-section">
+    <h2>{{cta.text}}</h2>
+    <p>{{intro}}</p>
+    <a href="{{cta.url}}">{{cta.text}}</a>
+  </section>
+
+  {{#if footer}}<footer>{{footer}}</footer>{{/if}}
+</body>
+</html>
