@@ -74,7 +74,8 @@
   },
   "files": [
     "bin/",
-    "dist/",
+    "dist/server/",
+    "dist/client/",
     "templates/",
     "LICENSE",
     "README.md"
