@@ -6,7 +6,7 @@
 // ------------------------------------------------------------------
 // Integration sources
 // ------------------------------------------------------------------
-export type IntegrationSource = "linear" | "github" | "jira";
+export type IntegrationSource = "linear" | "github" | "jira" | "gitlab" | "notion";
 
 // ------------------------------------------------------------------
 // Normalized ticket — all integrations map to this shape.
@@ -126,12 +126,25 @@ export interface JiraIntegrationConfig {
   // PAT is stored in OS keychain
 }
 
+export interface GitLabIntegrationConfig {
+  baseUrl?: string; // Default: https://gitlab.com
+  defaultGroupId?: string;
+  // PAT is stored in OS keychain
+}
+
+export interface NotionIntegrationConfig {
+  defaultDatabaseId?: string;
+  // Token is stored in OS keychain
+}
+
 export interface ShipPageConfig {
   version: 1;
   integrations: {
     linear?: LinearIntegrationConfig;
     github?: GitHubIntegrationConfig;
     jira?: JiraIntegrationConfig;
+    gitlab?: GitLabIntegrationConfig;
+    notion?: NotionIntegrationConfig;
   };
   ai: {
     provider: "anthropic";
@@ -158,6 +171,8 @@ export interface ConfigStatus {
       email?: string;
       apiType?: "cloud" | "server";
     };
+    gitlab: { configured: boolean; baseUrl?: string; defaultGroupId?: string };
+    notion: { configured: boolean; defaultDatabaseId?: string };
   };
   ai: {
     configured: boolean;

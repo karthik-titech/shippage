@@ -23,6 +23,8 @@ const KEYTAR_ACCOUNTS = {
   linearPat: "linear-pat",
   githubPat: "github-pat",
   jiraPat: "jira-pat",
+  gitlabPat: "gitlab-pat",
+  notionToken: "notion-token",
   anthropicKey: "anthropic-api-key",
 } as const;
 
@@ -147,17 +149,21 @@ export interface LoadedSecrets {
   linearPat: string | null;
   githubPat: string | null;
   jiraPat: string | null;
+  gitlabPat: string | null;
+  notionToken: string | null;
   anthropicKey: string | null;
 }
 
 export async function loadSecrets(): Promise<LoadedSecrets> {
-  const [linearPat, githubPat, jiraPat, anthropicKey] = await Promise.all([
+  const [linearPat, githubPat, jiraPat, gitlabPat, notionToken, anthropicKey] = await Promise.all([
     getSecret("linearPat"),
     getSecret("githubPat"),
     getSecret("jiraPat"),
+    getSecret("gitlabPat"),
+    getSecret("notionToken"),
     getSecret("anthropicKey"),
   ]);
-  return { linearPat, githubPat, jiraPat, anthropicKey };
+  return { linearPat, githubPat, jiraPat, gitlabPat, notionToken, anthropicKey };
 }
 
 // ----------------------------------------------------------------
@@ -167,6 +173,8 @@ export interface RedactedSecretStatus {
   linear: boolean;
   github: boolean;
   jira: boolean;
+  gitlab: boolean;
+  notion: boolean;
   anthropic: boolean;
 }
 
@@ -176,6 +184,8 @@ export async function getSecretStatus(): Promise<RedactedSecretStatus> {
     linear: secrets.linearPat !== null && secrets.linearPat !== "",
     github: secrets.githubPat !== null && secrets.githubPat !== "",
     jira: secrets.jiraPat !== null && secrets.jiraPat !== "",
+    gitlab: secrets.gitlabPat !== null && secrets.gitlabPat !== "",
+    notion: secrets.notionToken !== null && secrets.notionToken !== "",
     anthropic: secrets.anthropicKey !== null && secrets.anthropicKey !== "",
   };
 }
@@ -191,5 +201,9 @@ export async function getPatForSource(source: IntegrationSource): Promise<string
       return getSecret("githubPat");
     case "jira":
       return getSecret("jiraPat");
+    case "gitlab":
+      return getSecret("gitlabPat");
+    case "notion":
+      return getSecret("notionToken");
   }
 }

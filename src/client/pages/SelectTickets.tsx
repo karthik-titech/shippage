@@ -7,6 +7,8 @@ const SOURCES: Array<{ value: IntegrationSource; label: string }> = [
   { value: "linear", label: "Linear" },
   { value: "github", label: "GitHub Issues" },
   { value: "jira", label: "Jira" },
+  { value: "gitlab", label: "GitLab Issues" },
+  { value: "notion", label: "Notion Database" },
 ];
 
 const DEFAULT_SINCE = () => {

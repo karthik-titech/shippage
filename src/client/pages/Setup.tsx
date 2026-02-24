@@ -55,6 +55,9 @@ export default function Setup() {
   const [jiraBaseUrl, setJiraBaseUrl] = useState("");
   const [jiraEmail, setJiraEmail] = useState("");
   const [jiraApiType, setJiraApiType] = useState<"cloud" | "server">("cloud");
+  const [gitlabPat, setGitlabPat] = useState("");
+  const [gitlabBaseUrl, setGitlabBaseUrl] = useState("");
+  const [notionToken, setNotionToken] = useState("");
 
   const [linearStatus, setLinearStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
   const [linearError, setLinearError] = useState("");
@@ -62,6 +65,10 @@ export default function Setup() {
   const [githubError, setGithubError] = useState("");
   const [jiraStatus, setJiraStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
   const [jiraError, setJiraError] = useState("");
+  const [gitlabStatus, setGitlabStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [gitlabError, setGitlabError] = useState("");
+  const [notionStatus, setNotionStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [notionError, setNotionError] = useState("");
 
   // AI state
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -126,12 +133,44 @@ export default function Setup() {
         await configApi.saveSecret("jiraPat", jiraPat);
         await configApi.update({ integrations: { jira: { baseUrl: jiraBaseUrl, email: jiraEmail, apiType: jiraApiType } } });
       }
+      if (gitlabPat) {
+        await configApi.saveSecret("gitlabPat", gitlabPat);
+        if (gitlabBaseUrl) await configApi.update({ integrations: { gitlab: { baseUrl: gitlabBaseUrl } } });
+      }
+      if (notionToken) await configApi.saveSecret("notionToken", notionToken);
       setStep("ai");
     } catch {
       setGlobalError("Failed to save integrations. Check console.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function testGitlab() {
+    if (!gitlabPat) return;
+    setGitlabStatus("testing");
+    await configApi.saveSecret("gitlabPat", gitlabPat).catch(() => null);
+    if (gitlabBaseUrl) {
+      await configApi.update({ integrations: { gitlab: { baseUrl: gitlabBaseUrl } } }).catch(() => null);
+    }
+    const result = await integrationsApi.test("gitlab").catch((e: unknown) => ({
+      ok: false,
+      error: e instanceof ApiError ? e.message : "Failed",
+    }));
+    if (result.ok) { setGitlabStatus("ok"); }
+    else { setGitlabStatus("error"); setGitlabError(result.error ?? "Failed"); }
+  }
+
+  async function testNotion() {
+    if (!notionToken) return;
+    setNotionStatus("testing");
+    await configApi.saveSecret("notionToken", notionToken).catch(() => null);
+    const result = await integrationsApi.test("notion").catch((e: unknown) => ({
+      ok: false,
+      error: e instanceof ApiError ? e.message : "Failed",
+    }));
+    if (result.ok) { setNotionStatus("ok"); }
+    else { setNotionStatus("error"); setNotionError(result.error ?? "Failed"); }
   }
 
   async function testAnthropic() {
@@ -288,6 +327,46 @@ export default function Setup() {
                 )}
               </div>
               <button className="btn-secondary text-sm" onClick={() => void testJira()} disabled={!jiraPat || !jiraBaseUrl || !jiraEmail}>
+                Test connection
+              </button>
+            </div>
+
+            {/* GitLab */}
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">GitLab Issues</h3>
+                <ConnectionStatus status={gitlabStatus} error={gitlabError} />
+              </div>
+              <div>
+                <label className="label text-xs">Personal Access Token</label>
+                <PasswordInput value={gitlabPat} onChange={setGitlabPat} placeholder="glpat-..." />
+                <p className="text-xs text-gray-400 mt-1">
+                  User Settings → Access Tokens → add token with <code className="bg-gray-100 px-1 rounded">api</code> scope
+                </p>
+              </div>
+              <div>
+                <label className="label text-xs">GitLab URL (optional, for self-hosted)</label>
+                <input className="input text-sm" value={gitlabBaseUrl} onChange={(e) => setGitlabBaseUrl(e.target.value)} placeholder="https://gitlab.example.com" />
+              </div>
+              <button className="btn-secondary text-sm" onClick={() => void testGitlab()} disabled={!gitlabPat}>
+                Test connection
+              </button>
+            </div>
+
+            {/* Notion */}
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Notion</h3>
+                <ConnectionStatus status={notionStatus} error={notionError} />
+              </div>
+              <div>
+                <label className="label text-xs">Integration Token</label>
+                <PasswordInput value={notionToken} onChange={setNotionToken} placeholder="secret_..." />
+                <p className="text-xs text-gray-400 mt-1">
+                  notion.so/my-integrations → New integration → copy Internal Integration Token, then share your database with it
+                </p>
+              </div>
+              <button className="btn-secondary text-sm" onClick={() => void testNotion()} disabled={!notionToken}>
                 Test connection
               </button>
             </div>

@@ -163,4 +163,9 @@ export const exportApi = {
   getHtml: (releaseId: string) => fetch(`/api/export/${releaseId}/html`).then((r) => r.text()),
   templates: () =>
     request<{ templates: Array<{ name: string; source: string }> }>("/api/export/templates"),
+  publishToNotion: (releaseId: string, parentPageId: string) =>
+    request<{ url: string }>("/api/export/notion", {
+      method: "POST",
+      json: { releaseId, parentPageId },
+    }),
 };

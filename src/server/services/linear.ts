@@ -64,12 +64,37 @@ const ISSUES_QUERY = `
   }
 `;
 
-// ⚠️ Linear's GraphQL doesn't support filtering by teamId directly in the filter.
-// We fetch all completed issues and filter client-side when teamId is provided.
-// This is inefficient for large teams. A better approach for v2: use team-scoped queries.
+// Server-side team filtering via team-scoped query — efficient, no client-side filtering needed.
 const TEAM_ISSUES_QUERY = `
   query TeamCompletedIssues($teamId: String!, $after: String, $first: Int) {
     team(id: $teamId) {
+      issues(
+        filter: { state: { type: { eq: completed } } }
+        first: $first
+        after: $after
+        orderBy: updatedAt
+      ) {
+        nodes {
+          id
+          identifier
+          title
+          description
+          url
+          state { name type }
+          completedAt
+          labels { nodes { name } }
+          assignee { name }
+          attachments { nodes { url title } }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+`;
+
+const PROJECT_ISSUES_QUERY = `
+  query ProjectCompletedIssues($projectId: String!, $after: String, $first: Int) {
+    project(id: $projectId) {
       issues(
         filter: { state: { type: { eq: completed } } }
         first: $first
@@ -215,14 +240,36 @@ export const linearClient = {
   },
 
   async fetchProjects(pat: string): Promise<Array<{ id: string; name: string }>> {
-    const data = await withExponentialBackoff(() =>
-      graphqlRequest<{ teams: { nodes: Array<{ id: string; name: string }> } }>(
-        pat,
-        "query { teams { nodes { id name } } }",
-        {}
-      )
-    );
-    return data.teams.nodes;
+    const [teamsData, projectsData] = await Promise.all([
+      withExponentialBackoff(() =>
+        graphqlRequest<{ teams: { nodes: Array<{ id: string; name: string }> } }>(
+          pat,
+          "query { teams { nodes { id name } } }",
+          {}
+        )
+      ),
+      withExponentialBackoff(() =>
+        graphqlRequest<{
+          projects: { nodes: Array<{ id: string; name: string }> };
+        }>(
+          pat,
+          `query { projects(filter: { status: { type: { in: [planned, started] } } }) { nodes { id name } } }`,
+          {}
+        )
+      ).catch(() => ({ projects: { nodes: [] } })), // Projects query may not be available on all plans
+    ]);
+
+    const teams = teamsData.teams.nodes.map((t) => ({
+      id: `team:${t.id}`,
+      name: t.name,
+    }));
+
+    const projects = projectsData.projects.nodes.map((p) => ({
+      id: `project:${p.id}`,
+      name: `[Project] ${p.name}`,
+    }));
+
+    return [...teams, ...projects];
   },
 
   async fetchCompletedTickets(
@@ -230,17 +277,42 @@ export const linearClient = {
     options: { projectId?: string; since?: Date; limit?: number }
   ): Promise<NormalizedTicket[]> {
     type TeamResponse = { team: { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } } };
+    type ProjectResponse = { project: { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } } };
     type IssuesResponse = { issues: { nodes: LinearIssue[]; pageInfo: LinearPageInfo } };
 
     const tickets: NormalizedTicket[] = [];
     const pageSize = Math.min(options.limit ?? 50, 100);
     let cursor: string | null = null;
 
+    // Detect prefix to determine query type
+    let queryMode: "team" | "project" | "all" = "all";
+    let rawId: string | undefined;
+
+    if (options.projectId) {
+      if (options.projectId.startsWith("team:")) {
+        queryMode = "team";
+        rawId = options.projectId.slice(5);
+      } else if (options.projectId.startsWith("project:")) {
+        queryMode = "project";
+        rawId = options.projectId.slice(8);
+      } else {
+        // Legacy: treat bare IDs as team IDs for backwards compatibility
+        queryMode = "team";
+        rawId = options.projectId;
+      }
+    }
+
     do {
-      const data = await withExponentialBackoff<TeamResponse | IssuesResponse>(() => {
-        if (options.projectId) {
+      const data = await withExponentialBackoff<TeamResponse | ProjectResponse | IssuesResponse>(() => {
+        if (queryMode === "team") {
           return graphqlRequest<TeamResponse>(pat, TEAM_ISSUES_QUERY, {
-            teamId: options.projectId,
+            teamId: rawId,
+            first: pageSize,
+            after: cursor,
+          });
+        } else if (queryMode === "project") {
+          return graphqlRequest<ProjectResponse>(pat, PROJECT_ISSUES_QUERY, {
+            projectId: rawId,
             first: pageSize,
             after: cursor,
           });
@@ -249,9 +321,14 @@ export const linearClient = {
         }
       });
 
-      const result = options.projectId
-        ? (data as TeamResponse).team.issues
-        : (data as IssuesResponse).issues;
+      let result: { nodes: LinearIssue[]; pageInfo: LinearPageInfo };
+      if (queryMode === "team") {
+        result = (data as TeamResponse).team.issues;
+      } else if (queryMode === "project") {
+        result = (data as ProjectResponse).project.issues;
+      } else {
+        result = (data as IssuesResponse).issues;
+      }
 
       for (const issue of result.nodes) {
         if (options.since && issue.completedAt) {

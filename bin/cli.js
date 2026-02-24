@@ -104,6 +104,8 @@ async function main() {
         console.log(`  Linear:  ${secrets.linear ? "✓ configured" : "✗ not configured"}`);
         console.log(`  GitHub:  ${secrets.github ? "✓ configured" : "✗ not configured"}`);
         console.log(`  Jira:    ${secrets.jira ? "✓ configured" : "✗ not configured"}`);
+        console.log(`  GitLab:  ${secrets.gitlab ? "✓ configured" : "✗ not configured"}`);
+        console.log(`  Notion:  ${secrets.notion ? "✓ configured" : "✗ not configured"}`);
         console.log(`\nAI:`);
         console.log(`  Anthropic: ${secrets.anthropic ? "✓ configured" : "✗ not configured"}`);
         console.log(`  Model:     ${config.ai.model}`);
@@ -193,6 +195,8 @@ async function runInit() {
   const { linearClient } = await import("../dist/server/services/linear.js");
   const { githubClient } = await import("../dist/server/services/github.js");
   const { jiraClient } = await import("../dist/server/services/jira.js");
+  const { gitlabClient } = await import("../dist/server/services/gitlab.js");
+  const { notionClient } = await import("../dist/server/services/notion.js");
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
 
   ensureShipPageDirs();
@@ -211,7 +215,7 @@ async function runInit() {
       type: "checkbox",
       name: "integrations",
       message: "Which integrations do you want to configure?",
-      choices: ["Linear", "GitHub Issues", "Jira"],
+      choices: ["Linear", "GitHub Issues", "Jira", "GitLab", "Notion"],
     },
   ]);
 
@@ -322,6 +326,11 @@ async function runInit() {
       },
     ]);
 
+    if (jiraAnswers.apiType === "server") {
+      console.log("  Note: If your Jira server uses a self-signed certificate, set");
+      console.log("  NODE_TLS_REJECT_UNAUTHORIZED=0 before running shippage.");
+    }
+
     const jiraConfig = { baseUrl: jiraAnswers.baseUrl, email: jiraAnswers.email, apiType: jiraAnswers.apiType };
     process.stdout.write("  Testing Jira connection... ");
     const result = await jiraClient.testConnection(jiraConfig, jiraAnswers.jiraPat);
@@ -332,6 +341,62 @@ async function runInit() {
     } else {
       console.log(`✗ ${result.error ?? "Connection failed"}`);
       console.log("  Skipping Jira (you can reconfigure with `shippage init`).");
+    }
+  }
+
+  // GitLab
+  if (integrations.includes("GitLab")) {
+    const gitlabAnswers = await inquirer.prompt([
+      {
+        type: "password",
+        name: "gitlabPat",
+        message: "GitLab Personal Access Token (needs api scope):",
+        mask: "*",
+        validate: (v) => v.length > 0 || "PAT cannot be empty",
+      },
+      {
+        type: "input",
+        name: "gitlabBaseUrl",
+        message: "GitLab base URL (leave blank for https://gitlab.com):",
+        default: "",
+      },
+    ]);
+
+    const baseUrl = gitlabAnswers.gitlabBaseUrl || "https://gitlab.com";
+    process.stdout.write("  Testing GitLab connection... ");
+    const result = await gitlabClient.testConnection(gitlabAnswers.gitlabPat, baseUrl);
+    if (result.ok) {
+      console.log("✓");
+      await setSecret("gitlabPat", gitlabAnswers.gitlabPat);
+      const gitlabConfig = baseUrl !== "https://gitlab.com" ? { baseUrl } : {};
+      config.integrations.gitlab = Object.keys(gitlabConfig).length ? gitlabConfig : {};
+    } else {
+      console.log(`✗ ${result.error ?? "Connection failed"}`);
+      console.log("  Skipping GitLab (you can reconfigure with `shippage init`).");
+    }
+  }
+
+  // Notion
+  if (integrations.includes("Notion")) {
+    const { notionToken } = await inquirer.prompt([
+      {
+        type: "password",
+        name: "notionToken",
+        message: "Notion integration token (from notion.so/my-integrations):",
+        mask: "*",
+        validate: (v) => v.length > 0 || "Token cannot be empty",
+      },
+    ]);
+
+    process.stdout.write("  Testing Notion connection... ");
+    const result = await notionClient.testConnection(notionToken);
+    if (result.ok) {
+      console.log("✓");
+      await setSecret("notionToken", notionToken);
+      config.integrations.notion = {};
+    } else {
+      console.log(`✗ ${result.error ?? "Connection failed"}`);
+      console.log("  Skipping Notion (you can reconfigure with `shippage init`).");
     }
   }
 

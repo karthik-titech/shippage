@@ -7,6 +7,8 @@ import { createRelease, snapshotTickets, logGeneration, updateRelease } from "..
 import { linearClient } from "../services/linear.js";
 import { githubClient } from "../services/github.js";
 import { jiraClient } from "../services/jira.js";
+import { gitlabClient } from "../services/gitlab.js";
+import { notionClient } from "../services/notion.js";
 import { getPatForSource } from "../config/store.js";
 import type { IntegrationSource, NormalizedTicket } from "../../shared/types.js";
 
@@ -15,7 +17,7 @@ export const generateRouter: Router = Router();
 // POST /api/generate
 const generateSchema = z.object({
   ticketIds: z.array(z.string()).min(1, "Select at least one ticket.").max(100),
-  source: z.enum(["linear", "github", "jira"]),
+  source: z.enum(["linear", "github", "jira", "gitlab", "notion"]),
   projectId: z.string().min(1),
   version: z.string().min(1, "Version is required (e.g. v2.4)").max(50),
   template: z.string().min(1).default("minimal"),
@@ -81,6 +83,19 @@ generateRouter.post("/", async (req, res) => {
         });
         break;
       }
+      case "gitlab":
+        allTickets = await gitlabClient.fetchCompletedTickets(pat, {
+          projectId,
+          baseUrl: config.integrations.gitlab?.baseUrl,
+          limit: 200,
+        });
+        break;
+      case "notion":
+        allTickets = await notionClient.fetchCompletedTickets(pat, {
+          projectId,
+          limit: 200,
+        });
+        break;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -11,6 +11,10 @@ export default function Export() {
   const [exportResult, setExportResult] = useState<{ path: string; sizeBytes: number } | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notionPageId, setNotionPageId] = useState("");
+  const [notionPublishing, setNotionPublishing] = useState(false);
+  const [notionUrl, setNotionUrl] = useState<string | null>(null);
+  const [notionError, setNotionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -32,6 +36,20 @@ export default function Export() {
       setError(err instanceof ApiError ? err.message : "Export failed.");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handlePublishToNotion() {
+    if (!id || !notionPageId.trim()) return;
+    setNotionPublishing(true);
+    setNotionError(null);
+    try {
+      const result = await exportApi.publishToNotion(id, notionPageId.trim());
+      setNotionUrl(result.url);
+    } catch (err: unknown) {
+      setNotionError(err instanceof ApiError ? err.message : "Failed to publish to Notion.");
+    } finally {
+      setNotionPublishing(false);
     }
   }
 
@@ -137,6 +155,43 @@ export default function Export() {
               {copySuccess ? "✓ Copied!" : "Copy HTML"}
             </button>
           </div>
+        </div>
+
+        {/* Publish to Notion */}
+        <div className="card space-y-3">
+          <div>
+            <h3 className="font-semibold">Publish to Notion</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Create a new Notion page with this release content. Requires Notion configured in setup.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="input flex-1 text-sm font-mono"
+              placeholder="Parent page ID (from page URL)"
+              value={notionPageId}
+              onChange={(e) => setNotionPageId(e.target.value)}
+            />
+            <button
+              className="btn-secondary flex-shrink-0"
+              disabled={!notionPageId.trim() || notionPublishing}
+              onClick={() => void handlePublishToNotion()}
+            >
+              {notionPublishing ? "Publishing..." : "Publish"}
+            </button>
+          </div>
+          {notionError && (
+            <p className="text-sm text-red-600">{notionError}</p>
+          )}
+          {notionUrl && (
+            <p className="text-sm text-green-600">
+              ✓ Published!{" "}
+              <a href={notionUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                Open in Notion
+              </a>
+            </p>
+          )}
         </div>
       </div>
 

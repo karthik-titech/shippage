@@ -4,6 +4,8 @@ import { readConfig, getPatForSource, getSecretStatus } from "../config/store.js
 import { linearClient } from "../services/linear.js";
 import { githubClient } from "../services/github.js";
 import { jiraClient } from "../services/jira.js";
+import { gitlabClient } from "../services/gitlab.js";
+import { notionClient } from "../services/notion.js";
 import type { IntegrationSource, NormalizedTicket } from "../../shared/types.js";
 
 export const integrationsRouter: Router = Router();
@@ -32,6 +34,15 @@ integrationsRouter.get("/status", async (_req, res) => {
           email: config.integrations.jira?.email,
           apiType: config.integrations.jira?.apiType,
         },
+        gitlab: {
+          configured: secretStatus.gitlab,
+          baseUrl: config.integrations.gitlab?.baseUrl,
+          defaultGroupId: config.integrations.gitlab?.defaultGroupId,
+        },
+        notion: {
+          configured: secretStatus.notion,
+          defaultDatabaseId: config.integrations.notion?.defaultDatabaseId,
+        },
       },
       ai: {
         configured: secretStatus.anthropic,
@@ -47,7 +58,7 @@ integrationsRouter.get("/status", async (_req, res) => {
 // POST /api/integrations/test
 // Test a specific integration's connection
 const testConnectionSchema = z.object({
-  source: z.enum(["linear", "github", "jira"]),
+  source: z.enum(["linear", "github", "jira", "gitlab", "notion"]),
 });
 
 integrationsRouter.post("/test", async (req, res) => {
@@ -92,6 +103,19 @@ integrationsRouter.post("/test", async (req, res) => {
         res.json(result);
         break;
       }
+      case "gitlab": {
+        const result = await gitlabClient.testConnection(
+          pat,
+          config.integrations.gitlab?.baseUrl
+        );
+        res.json(result);
+        break;
+      }
+      case "notion": {
+        const result = await notionClient.testConnection(pat);
+        res.json(result);
+        break;
+      }
     }
   } catch {
     // Don't expose internal error details — they could contain the PAT in some edge cases
@@ -101,13 +125,13 @@ integrationsRouter.post("/test", async (req, res) => {
 
 // GET /api/integrations/projects?source=linear
 const projectsQuerySchema = z.object({
-  source: z.enum(["linear", "github", "jira"]),
+  source: z.enum(["linear", "github", "jira", "gitlab", "notion"]),
 });
 
 integrationsRouter.get("/projects", async (req, res) => {
   const parsed = projectsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    res.status(400).json({ error: "source parameter required (linear|github|jira)" });
+    res.status(400).json({ error: "source parameter required (linear|github|jira|gitlab|notion)" });
     return;
   }
 
@@ -143,6 +167,12 @@ integrationsRouter.get("/projects", async (req, res) => {
         projects = await jiraClient.fetchProjects(jiraConfig, pat);
         break;
       }
+      case "gitlab":
+        projects = await gitlabClient.fetchProjects(pat, config.integrations.gitlab?.baseUrl);
+        break;
+      case "notion":
+        projects = await notionClient.fetchProjects(pat);
+        break;
     }
 
     res.json({ projects });
@@ -155,7 +185,7 @@ integrationsRouter.get("/projects", async (req, res) => {
 
 // GET /api/integrations/tickets?source=linear&projectId=TEAM-ID&since=2024-01-01&limit=50
 const ticketsQuerySchema = z.object({
-  source: z.enum(["linear", "github", "jira"]),
+  source: z.enum(["linear", "github", "jira", "gitlab", "notion"]),
   projectId: z.string().optional(),
   since: z.string().datetime({ offset: true }).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -209,6 +239,31 @@ integrationsRouter.get("/tickets", async (req, res) => {
           return;
         }
         tickets = await jiraClient.fetchCompletedTickets(jiraConfig, pat, {
+          projectId,
+          since: sinceDate,
+          limit,
+        });
+        break;
+      }
+      case "gitlab": {
+        if (!projectId) {
+          res.status(400).json({ error: "projectId is required for GitLab." });
+          return;
+        }
+        tickets = await gitlabClient.fetchCompletedTickets(pat, {
+          projectId,
+          since: sinceDate,
+          limit,
+          baseUrl: config.integrations.gitlab?.baseUrl,
+        });
+        break;
+      }
+      case "notion": {
+        if (!projectId) {
+          res.status(400).json({ error: "projectId (database ID) is required for Notion." });
+          return;
+        }
+        tickets = await notionClient.fetchCompletedTickets(pat, {
           projectId,
           since: sinceDate,
           limit,

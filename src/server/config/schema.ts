@@ -31,6 +31,19 @@ const JiraConfigSchema = z.object({
   apiType: z.enum(["cloud", "server"]),
 });
 
+const GitLabConfigSchema = z.object({
+  baseUrl: z
+    .string()
+    .url()
+    .regex(/^https:\/\//, "GitLab base URL must use HTTPS")
+    .optional(),
+  defaultGroupId: z.string().optional(),
+});
+
+const NotionConfigSchema = z.object({
+  defaultDatabaseId: z.string().optional(),
+});
+
 const AiConfigSchema = z.object({
   provider: z.literal("anthropic"),
   model: z.string().default("claude-sonnet-4-6"),
@@ -56,6 +69,8 @@ export const ShipPageConfigSchema = z.object({
       linear: LinearConfigSchema.optional(),
       github: GitHubConfigSchema.optional(),
       jira: JiraConfigSchema.optional(),
+      gitlab: GitLabConfigSchema.optional(),
+      notion: NotionConfigSchema.optional(),
     })
     .default({}),
   ai: AiConfigSchema,
