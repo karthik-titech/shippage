@@ -101,7 +101,16 @@ export async function getSecret(account: keyof typeof KEYTAR_ACCOUNTS): Promise<
   const accountName = KEYTAR_ACCOUNTS[account];
 
   if (keytar) {
-    return keytar.getPassword(KEYTAR_SERVICE, accountName);
+    try {
+      return await keytar.getPassword(KEYTAR_SERVICE, accountName);
+    } catch {
+      // keytar loaded but secret service unavailable (e.g. CI without D-Bus daemon)
+      // fall through to plaintext fallback below
+      console.warn(
+        `[ShipPage] WARNING: OS keychain (keytar) failed for "${accountName}" ` +
+          `(secret service not running). Falling back to config file.`
+      );
+    }
   }
 
   // Fallback: read from config file (insecure — warn loudly)
@@ -121,8 +130,16 @@ export async function setSecret(
   const accountName = KEYTAR_ACCOUNTS[account];
 
   if (keytar) {
-    await keytar.setPassword(KEYTAR_SERVICE, accountName, value);
-    return;
+    try {
+      await keytar.setPassword(KEYTAR_SERVICE, accountName, value);
+      return;
+    } catch {
+      // keytar loaded but secret service unavailable — fall through to plaintext fallback
+      console.warn(
+        `[ShipPage] WARNING: OS keychain (keytar) failed for "${accountName}" ` +
+          `(secret service not running). Falling back to config file.`
+      );
+    }
   }
 
   // Fallback: store in config file with loud warning
@@ -139,7 +156,11 @@ export async function setSecret(
 export async function deleteSecret(account: keyof typeof KEYTAR_ACCOUNTS): Promise<void> {
   const accountName = KEYTAR_ACCOUNTS[account];
   if (keytar) {
-    await keytar.deletePassword(KEYTAR_SERVICE, accountName);
+    try {
+      await keytar.deletePassword(KEYTAR_SERVICE, accountName);
+    } catch {
+      // secret service unavailable — nothing to delete from plaintext fallback
+    }
   }
 }
 
