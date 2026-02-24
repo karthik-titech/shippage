@@ -73,7 +73,7 @@ export default function Setup() {
   // AI state
   const [anthropicKey, setAnthropicKey] = useState("");
   const [anthropicStatus, setAnthropicStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
-  const [anthropicError, setAnthropicError] = useState("");
+  const [anthropicError] = useState("");
 
   // Preferences
   const [companyName, setCompanyName] = useState("");

@@ -4,15 +4,16 @@ import os from "os";
 import type { IntegrationSource } from "../../shared/types.js";
 import { ShipPageConfigSchema, DEFAULT_CONFIG } from "./schema.js";
 import type { ValidatedConfig } from "./schema.js";
+import type KeytarModule from "keytar";
 
 // ----------------------------------------------------------------
 // Keytar: optional dependency for OS keychain storage.
 // If not available (missing build tools, CI, etc.), falls back to
 // a plaintext warning. We NEVER silently fall back without warning.
 // ----------------------------------------------------------------
-let keytar: typeof import("keytar") | null = null;
+let keytar: typeof KeytarModule | null = null;
 try {
-  keytar = (await import("keytar")) as typeof import("keytar");
+  keytar = (await import("keytar")) as typeof KeytarModule;
 } catch {
   // keytar failed to load — native bindings not available
   // This is expected in some CI environments and on machines without build tools

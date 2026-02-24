@@ -167,7 +167,7 @@ export const githubClient = {
     try {
       await githubFetch(pat, `${baseUrl}/user`);
       return { ok: true };
-    } catch (err) {
+    } catch {
       return {
         ok: false,
         error: "Authentication failed. Check your GitHub PAT and required scopes.",

@@ -50,7 +50,7 @@ integrationsRouter.get("/status", async (_req, res) => {
       },
       preferences: config.preferences,
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to read configuration." });
   }
 });

@@ -15,6 +15,7 @@ import { getDb, closeDb } from "./db/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function createServer(options?: { devMode?: boolean }): Promise<{
   app: express.Application;
   start: (port: number) => Promise<number>;

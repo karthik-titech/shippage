@@ -58,7 +58,7 @@ interface JiraIssue {
     resolutiondate: string | null;
     updated: string;
     comment?: {
-      comments: Array<{ body: string | unknown }>;
+      comments: Array<{ body: unknown }>;
     };
   };
   self: string; // API URL for this issue
