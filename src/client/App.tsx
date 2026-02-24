@@ -9,6 +9,7 @@ const SelectTickets = lazy(() => import("./pages/SelectTickets.js"));
 const Editor = lazy(() => import("./pages/Editor.js"));
 const Export = lazy(() => import("./pages/Export.js"));
 const History = lazy(() => import("./pages/History.js"));
+const Settings = lazy(() => import("./pages/Settings.js"));
 
 function LoadingFallback() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/export/:id" element={<Export />} />
           <Route path="/history" element={<History />} />
           <Route path="/history/:id" element={<History />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
