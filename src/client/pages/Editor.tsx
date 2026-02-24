@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { releasesApi, generateApi, exportApi, ApiError } from "../lib/api.js";
-import type { Release, GeneratedReleasePage, ReleaseSection, ReleaseSectionItem } from "../../shared/types.js";
+import { releasesApi, generateApi, exportApi, configApi, ApiError } from "../lib/api.js";
+import type {
+  Release,
+  GeneratedReleasePage,
+  ReleaseSection,
+  ReleaseSectionItem,
+  MediaBlock,
+} from "../../shared/types.js";
 
 // ----------------------------------------------------------------
 // Structured Form Editor
@@ -41,12 +47,22 @@ function AutoTextarea({
       className={`editor-field ${className}`}
       style={{ resize: "none", overflow: "hidden" }}
       onInput={(e) => {
-        // Auto-resize
         const el = e.currentTarget;
         el.style.height = "auto";
         el.style.height = `${el.scrollHeight}px`;
       }}
     />
+  );
+}
+
+// ----------------------------------------------------------------
+// X icon (shared)
+// ----------------------------------------------------------------
+function XIcon({ size = 4 }: { size?: number }) {
+  return (
+    <svg className={`w-${size} h-${size}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
   );
 }
 
@@ -60,6 +76,14 @@ export default function Editor() {
   const [templates, setTemplates] = useState<Array<{ name: string; source: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("minimal");
 
+  // #5 — Brand color (loaded from config, editable live)
+  const [brandColor, setBrandColor] = useState("#2563EB");
+
+  // #6 — Published status + copy HTML
+  const [status, setStatus] = useState<Release["status"]>("draft");
+  const [publishing, setPublishing] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rerendering, setRerendering] = useState(false);
@@ -70,6 +94,7 @@ export default function Editor() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const brandColorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -77,20 +102,25 @@ export default function Editor() {
       releasesApi.get(id),
       exportApi.getHtml(id).catch(() => ""),
       exportApi.templates(),
+      configApi.get(),
     ])
-      .then(([releaseData, htmlData, templatesData]) => {
+      .then(([releaseData, htmlData, templatesData, configData]) => {
         const r = (releaseData as { release: Release }).release;
         setRelease(r);
         setContent(r.generatedContent);
         setHtml(htmlData);
         setSelectedTemplate(r.templateUsed);
+        setStatus(r.status);
         setTemplates((templatesData as { templates: Array<{ name: string; source: string }> }).templates);
+        // Load brand color from config
+        const prefs = (configData as { config: { preferences?: { brandColor?: string } } }).config.preferences;
+        if (prefs?.brandColor) setBrandColor(prefs.brandColor);
       })
       .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Failed to load release."))
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Auto-save with debounce
+  // Auto-save content with debounce
   const scheduleSave = useCallback(
     (newContent: GeneratedReleasePage) => {
       if (!id) return;
@@ -179,6 +209,42 @@ export default function Editor() {
     updateContent({ ...content, sections: content.sections.filter((_, i) => i !== idx) });
   }
 
+  // ----------------------------------------------------------------
+  // #3 — Media block helpers
+  // ----------------------------------------------------------------
+  function updateMediaBlock(
+    sectionIdx: number,
+    itemIdx: number,
+    mediaIdx: number,
+    block: MediaBlock
+  ) {
+    if (!content) return;
+    const item = content.sections[sectionIdx]!.items[itemIdx]!;
+    const media = item.media.map((m, mi) => (mi === mediaIdx ? block : m));
+    updateItem(sectionIdx, itemIdx, { ...item, media });
+  }
+
+  function addMediaBlock(sectionIdx: number, itemIdx: number) {
+    if (!content) return;
+    const item = content.sections[sectionIdx]!.items[itemIdx]!;
+    updateItem(sectionIdx, itemIdx, {
+      ...item,
+      media: [...item.media, { type: "image", url: "", alt: "" }],
+    });
+  }
+
+  function removeMediaBlock(sectionIdx: number, itemIdx: number, mediaIdx: number) {
+    if (!content) return;
+    const item = content.sections[sectionIdx]!.items[itemIdx]!;
+    updateItem(sectionIdx, itemIdx, {
+      ...item,
+      media: item.media.filter((_, mi) => mi !== mediaIdx),
+    });
+  }
+
+  // ----------------------------------------------------------------
+  // Template change
+  // ----------------------------------------------------------------
   async function handleTemplateChange(template: string) {
     if (!id) return;
     setRerendering(true);
@@ -193,6 +259,30 @@ export default function Editor() {
     }
   }
 
+  // ----------------------------------------------------------------
+  // #5 — Brand color: save to config then re-render preview
+  // ----------------------------------------------------------------
+  function handleBrandColorChange(color: string) {
+    setBrandColor(color);
+    if (brandColorTimeoutRef.current) clearTimeout(brandColorTimeoutRef.current);
+    brandColorTimeoutRef.current = setTimeout(async () => {
+      try {
+        await configApi.update({ preferences: { brandColor: color } });
+        if (!id) return;
+        setRerendering(true);
+        const result = await generateApi.rerender(id, selectedTemplate);
+        setHtml(result.html);
+      } catch (err: unknown) {
+        setError(err instanceof ApiError ? err.message : "Color update failed.");
+      } finally {
+        setRerendering(false);
+      }
+    }, 600);
+  }
+
+  // ----------------------------------------------------------------
+  // Regenerate
+  // ----------------------------------------------------------------
   async function handleRegenerate() {
     if (!id) return;
     setError(null);
@@ -209,6 +299,36 @@ export default function Editor() {
       setError(err instanceof ApiError ? err.message : "Regeneration failed.");
     } finally {
       setRegenerating(false);
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // #6 — Publish / unpublish
+  // ----------------------------------------------------------------
+  async function handleTogglePublish() {
+    if (!id) return;
+    setPublishing(true);
+    const newStatus: Release["status"] = status === "published" ? "draft" : "published";
+    try {
+      await releasesApi.update(id, { status: newStatus });
+      setStatus(newStatus);
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : "Status update failed.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  // #6 — Copy HTML to clipboard
+  async function handleCopyHtml() {
+    if (!id) return;
+    try {
+      const rawHtml = await exportApi.getHtml(id);
+      await navigator.clipboard.writeText(rawHtml);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setError("Could not copy HTML to clipboard.");
     }
   }
 
@@ -234,12 +354,12 @@ export default function Editor() {
     <div className="flex flex-col h-screen">
       {/* Top bar */}
       <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center gap-4">
-        <div className="flex-1 flex items-center gap-4">
-          <span className="font-semibold text-gray-900">
+        <div className="flex-1 flex items-center gap-3 min-w-0">
+          <span className="font-semibold text-gray-900 truncate">
             {release.projectName} {release.version}
           </span>
           <select
-            className="input text-sm w-44"
+            className="input text-sm w-44 shrink-0"
             value={selectedTemplate}
             onChange={(e) => void handleTemplateChange(e.target.value)}
             disabled={rerendering}
@@ -250,11 +370,23 @@ export default function Editor() {
               </option>
             ))}
           </select>
+          {/* #5 — Brand color picker */}
+          <div className="flex items-center gap-1.5 shrink-0" title="Brand color">
+            <input
+              type="color"
+              value={brandColor}
+              onChange={(e) => handleBrandColorChange(e.target.value)}
+              className="h-7 w-7 rounded cursor-pointer border border-gray-300 p-0.5"
+            />
+            <span className="text-xs text-gray-400 font-mono hidden sm:block">{brandColor}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 shrink-0">
           {saveSuccess && <span className="text-sm text-green-600">✓ Saved</span>}
-          {saving && <span className="text-sm text-gray-500">Saving...</span>}
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {saving && <span className="text-sm text-gray-500">Saving…</span>}
+          {error && <span className="text-sm text-red-600 max-w-xs truncate">{error}</span>}
+
           <button
             onClick={() => setShowRegeneratePanel((v) => !v)}
             className="btn-ghost text-sm"
@@ -267,6 +399,27 @@ export default function Editor() {
               </span>
             ) : "Regenerate"}
           </button>
+
+          {/* #6 — Publish toggle */}
+          <button
+            onClick={() => void handleTogglePublish()}
+            disabled={publishing}
+            className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+              status === "published"
+                ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {publishing ? "…" : status === "published" ? "✓ Published" : "Publish"}
+          </button>
+
+          {/* #6 — Copy HTML (shown when published) */}
+          {status === "published" && (
+            <button onClick={() => void handleCopyHtml()} className="btn-ghost text-sm">
+              {copySuccess ? "✓ Copied!" : "Copy HTML"}
+            </button>
+          )}
+
           <button
             onClick={() => navigate(`/export/${release.id}`)}
             className="btn-primary text-sm"
@@ -293,10 +446,7 @@ export default function Editor() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => void handleRegenerate()}
-              className="btn-primary text-sm px-4"
-            >
+            <button onClick={() => void handleRegenerate()} className="btn-primary text-sm px-4">
               Regenerate with AI
             </button>
             <button
@@ -361,22 +511,19 @@ export default function Editor() {
                     className="text-gray-400 hover:text-red-500 transition-colors p-1"
                     title="Remove section"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XIcon size={4} />
                   </button>
                 </div>
 
                 {section.items.map((item, iIdx) => (
                   <div key={iIdx} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    {/* Item title + remove */}
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
                         className="input font-medium text-sm flex-1"
                         value={item.title}
-                        onChange={(e) =>
-                          updateItem(sIdx, iIdx, { ...item, title: e.target.value })
-                        }
+                        onChange={(e) => updateItem(sIdx, iIdx, { ...item, title: e.target.value })}
                         placeholder="Item title..."
                       />
                       <button
@@ -384,11 +531,11 @@ export default function Editor() {
                         className="text-gray-400 hover:text-red-500 p-1"
                         title="Remove item"
                       >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <XIcon size={3} />
                       </button>
                     </div>
+
+                    {/* Description */}
                     <AutoTextarea
                       value={item.description}
                       onChange={(v) => updateItem(sIdx, iIdx, { ...item, description: v })}
@@ -396,6 +543,80 @@ export default function Editor() {
                       rows={2}
                       className="text-sm"
                     />
+
+                    {/* #3 — Media blocks */}
+                    {item.media.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        <label className="label text-xs text-gray-500">Images / Videos</label>
+                        {item.media.map((block, mIdx) => (
+                          <div
+                            key={mIdx}
+                            className="rounded border border-gray-200 bg-white p-2 space-y-1.5"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm w-5 shrink-0 text-center">
+                                {block.type === "image" ? "🖼" : "🎬"}
+                              </span>
+                              <select
+                                className="input text-xs w-24 shrink-0"
+                                value={block.type}
+                                onChange={(e) =>
+                                  updateMediaBlock(sIdx, iIdx, mIdx, {
+                                    ...block,
+                                    type: e.target.value as "image" | "video",
+                                  })
+                                }
+                              >
+                                <option value="image">Image</option>
+                                <option value="video">Video</option>
+                              </select>
+                              <button
+                                onClick={() => removeMediaBlock(sIdx, iIdx, mIdx)}
+                                className="ml-auto text-gray-300 hover:text-red-400 p-0.5"
+                                title="Remove media"
+                              >
+                                <XIcon size={3} />
+                              </button>
+                            </div>
+                            <input
+                              type="url"
+                              className={`input text-xs font-mono w-full ${
+                                block.url === "#" || block.url === ""
+                                  ? "border-amber-300 bg-amber-50 focus:border-amber-400"
+                                  : ""
+                              }`}
+                              value={block.url}
+                              placeholder="https://example.com/screenshot.png"
+                              onChange={(e) =>
+                                updateMediaBlock(sIdx, iIdx, mIdx, { ...block, url: e.target.value })
+                              }
+                            />
+                            {(block.url === "#" || block.url === "") && (
+                              <p className="text-xs text-amber-600">
+                                ⚠ Add a real URL to show this {block.type} in the page
+                              </p>
+                            )}
+                            <input
+                              type="text"
+                              className="input text-xs w-full"
+                              value={block.alt}
+                              placeholder="Alt text (e.g. Screenshot of the new dashboard)"
+                              onChange={(e) =>
+                                updateMediaBlock(sIdx, iIdx, mIdx, { ...block, alt: e.target.value })
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add image button */}
+                    <button
+                      onClick={() => addMediaBlock(sIdx, iIdx)}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      + Add image
+                    </button>
                   </div>
                 ))}
 
@@ -408,10 +629,7 @@ export default function Editor() {
               </div>
             ))}
 
-            <button
-              onClick={addSection}
-              className="btn-secondary w-full border-dashed"
-            >
+            <button onClick={addSection} className="btn-secondary w-full border-dashed">
               + Add section
             </button>
 
@@ -425,7 +643,9 @@ export default function Editor() {
                     type="text"
                     className="input text-sm"
                     value={content.cta.text}
-                    onChange={(e) => updateContent({ ...content, cta: { ...content.cta, text: e.target.value } })}
+                    onChange={(e) =>
+                      updateContent({ ...content, cta: { ...content.cta, text: e.target.value } })
+                    }
                   />
                 </div>
                 <div>
@@ -435,7 +655,9 @@ export default function Editor() {
                     className="input text-sm"
                     value={content.cta.url}
                     placeholder="https://..."
-                    onChange={(e) => updateContent({ ...content, cta: { ...content.cta, url: e.target.value } })}
+                    onChange={(e) =>
+                      updateContent({ ...content, cta: { ...content.cta, url: e.target.value } })
+                    }
                   />
                 </div>
               </div>
@@ -447,7 +669,7 @@ export default function Editor() {
         <div className="w-1/2 overflow-hidden bg-gray-100 flex flex-col">
           <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
             <span className="text-xs text-gray-500 font-medium">Preview</span>
-            {rerendering && (
+            {(rerendering) && (
               <div className="w-3 h-3 border border-blue-500 border-t-transparent rounded-full animate-spin" />
             )}
             <span className="text-xs text-gray-400 ml-auto">Sandboxed — scripts disabled</span>
