@@ -481,6 +481,16 @@ pnpm build        # tsc (server) + vite build (client)
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- How to run the full test suite locally
+- The CI pipeline structure
+- How to set up a **self-hosted runner** on your own machine (useful for private forks where GitHub-hosted runner minutes require billing)
+- Code conventions and PR process
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

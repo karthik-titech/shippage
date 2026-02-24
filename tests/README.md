@@ -85,17 +85,23 @@ Tests use Playwright's `request` fixture (no browser UI) for fast, headless API-
 
 ## CI integration (.github/workflows/ci.yml)
 
+Runs on GitHub-hosted Ubuntu runners (free on public repos). See [CONTRIBUTING.md](../CONTRIBUTING.md) for self-hosted runner setup if you're working on a private fork.
+
 ```
-Push to main / PR to main:
+Push / PR to main:
   ├── Job: lint-type-test (matrix: Node 18, 20, 22)
-  │   ├── pnpm lint         (ESLint)
+  │   ├── pnpm lint         (ESLint flat config)
   │   ├── pnpm typecheck    (tsc --noEmit, both tsconfig.server and tsconfig.client)
   │   ├── pnpm test         (Vitest unit tests)
   │   └── pnpm build        (compile server + bundle client)
+  │
+  ├── Job: e2e (Node 20, needs: lint-type-test)
+  │   ├── pnpm test:e2e     (Playwright API smoke tests against real Express on :3999)
+  │   └── pnpm test:e2e:ui  (Playwright browser navigation tests against built app)
   │
   └── Job: security (Node 22)
       ├── npm audit --audit-level=high   (blocks on high/critical vulns)
       └── Snyk scan (if SNYK_TOKEN secret configured)
 ```
 
-E2E tests are not yet in CI (no headless browser configured in the workflow). That's a pending item.
+Linux runners require `libsecret-1-dev` for keytar (native OS keychain bindings). The workflow installs it before `pnpm install` in jobs that need it.
