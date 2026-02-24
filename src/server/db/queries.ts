@@ -128,6 +128,7 @@ export function listReleases(filters?: {
   projectName?: string;
   status?: ReleaseStatus;
   limit?: number;
+  offset?: number;
 }): Release[] {
   const db = getDb();
   let sql = "SELECT * FROM releases WHERE 1=1";
@@ -147,6 +148,11 @@ export function listReleases(filters?: {
   if (filters?.limit) {
     sql += " LIMIT ?";
     params.push(filters.limit);
+  }
+
+  if (filters?.offset) {
+    sql += " OFFSET ?";
+    params.push(filters.offset);
   }
 
   const rows = db.prepare(sql).all(...params) as ReleaseRow[];

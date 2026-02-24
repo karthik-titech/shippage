@@ -141,12 +141,13 @@ export const generateApi = {
 // Releases API
 // ----------------------------------------------------------------
 export const releasesApi = {
-  list: (params?: { project?: string; status?: string; limit?: number }) => {
+  list: (params?: { project?: string; status?: string; limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();
     if (params?.project) qs.set("project", params.project);
     if (params?.status) qs.set("status", params.status);
     if (params?.limit) qs.set("limit", String(params.limit));
-    return request<{ releases: unknown[]; count: number }>(`/api/releases?${qs}`);
+    if (params?.offset) qs.set("offset", String(params.offset));
+    return request<{ releases: unknown[]; count: number; hasMore: boolean }>(`/api/releases?${qs}`);
   },
   get: (id: string) => request<{ release: unknown }>(`/api/releases/${id}`),
   update: (id: string, data: unknown) =>
@@ -169,6 +170,8 @@ export const exportApi = {
   getHtml: (releaseId: string) => fetch(`/api/export/${releaseId}/html`).then((r) => r.text()),
   templates: () =>
     request<{ templates: Array<{ name: string; source: string }> }>("/api/export/templates"),
+  notionPages: () =>
+    request<{ pages: Array<{ id: string; name: string }> }>("/api/export/notion/pages"),
   publishToNotion: (releaseId: string, parentPageId: string) =>
     request<{ url: string }>("/api/export/notion", {
       method: "POST",

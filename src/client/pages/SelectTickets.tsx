@@ -260,7 +260,9 @@ export default function SelectTickets() {
                     ))}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs text-gray-400 font-mono">{ticket.externalId}</span>
+                    {ticket.source !== "notion" && (
+                      <span className="text-xs text-gray-400 font-mono">{ticket.externalId}</span>
+                    )}
                     {ticket.assignee && (
                       <span className="text-xs text-gray-400">{ticket.assignee}</span>
                     )}

@@ -169,6 +169,40 @@ export const notionClient = {
     return results;
   },
 
+  // Fetch pages accessible to the integration — used as publish targets
+  async fetchParentPages(token: string): Promise<Array<{ id: string; name: string }>> {
+    const results: Array<{ id: string; name: string }> = [];
+    let cursor: string | undefined;
+
+    do {
+      const body: Record<string, unknown> = {
+        filter: { value: "page", property: "object" },
+        page_size: 50,
+      };
+      if (cursor) body.start_cursor = cursor;
+
+      const data = await notionFetch<{
+        results: Array<{ id: string; properties: Record<string, NotionProperty> }>;
+        has_more: boolean;
+        next_cursor: string | null;
+      }>(token, "/search", { method: "POST", body });
+
+      for (const page of data.results) {
+        const titleProp = Object.values(page.properties).find((p) => p.type === "title") as
+          | NotionTitleProp
+          | undefined;
+        const name = titleProp
+          ? titleProp.title.map((r) => r.plain_text).join("")
+          : "(Untitled page)";
+        results.push({ id: page.id, name: name || "(Untitled page)" });
+      }
+
+      cursor = data.has_more && data.next_cursor ? data.next_cursor : undefined;
+    } while (cursor && results.length < 100);
+
+    return results;
+  },
+
   async fetchCompletedTickets(
     token: string,
     options: {

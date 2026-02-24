@@ -19,6 +19,7 @@ releasesRouter.get("/", (req, res) => {
       project: z.string().optional(),
       status: z.enum(["draft", "published", "archived"]).optional(),
       limit: z.coerce.number().int().min(1).max(100).default(20),
+      offset: z.coerce.number().int().min(0).default(0),
     })
     .safeParse(req.query);
 
@@ -31,9 +32,10 @@ releasesRouter.get("/", (req, res) => {
     projectName: query.data.project,
     status: query.data.status as ReleaseStatus | undefined,
     limit: query.data.limit,
+    offset: query.data.offset,
   });
 
-  res.json({ releases, count: releases.length });
+  res.json({ releases, count: releases.length, hasMore: releases.length === query.data.limit });
 });
 
 // GET /api/releases/:id

@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { releasesApi, exportApi, ApiError } from "../lib/api.js";
 import type { Release } from "../../shared/types.js";
 
+type NotionPage = { id: string; name: string };
+
 export default function Export() {
   const { id } = useParams<{ id: string }>();
   const [release, setRelease] = useState<Release | null>(null);
@@ -12,6 +14,7 @@ export default function Export() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notionPageId, setNotionPageId] = useState("");
+  const [notionPages, setNotionPages] = useState<NotionPage[]>([]);
   const [notionPublishing, setNotionPublishing] = useState(false);
   const [notionUrl, setNotionUrl] = useState<string | null>(null);
   const [notionError, setNotionError] = useState<string | null>(null);
@@ -23,6 +26,14 @@ export default function Export() {
       .then((data) => setRelease((data as { release: Release }).release))
       .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Failed to load."))
       .finally(() => setLoading(false));
+
+    // Fetch Notion parent pages for the publish picker (best-effort)
+    exportApi
+      .notionPages()
+      .then((data) => setNotionPages(data.pages))
+      .catch(() => {
+        // Notion not configured or API unavailable — degrade to text input
+      });
   }, [id]);
 
   async function handleExport(mode: "single-file" | "folder") {
@@ -166,13 +177,28 @@ export default function Export() {
             </p>
           </div>
           <div className="flex gap-2">
-            <input
-              type="text"
-              className="input flex-1 text-sm font-mono"
-              placeholder="Parent page ID (from page URL)"
-              value={notionPageId}
-              onChange={(e) => setNotionPageId(e.target.value)}
-            />
+            {notionPages.length > 0 ? (
+              <select
+                className="input flex-1 text-sm"
+                value={notionPageId}
+                onChange={(e) => setNotionPageId(e.target.value)}
+              >
+                <option value="">Select a parent page...</option>
+                {notionPages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                className="input flex-1 text-sm font-mono"
+                placeholder="Parent page ID (from Notion page URL)"
+                value={notionPageId}
+                onChange={(e) => setNotionPageId(e.target.value)}
+              />
+            )}
             <button
               className="btn-secondary flex-shrink-0"
               disabled={!notionPageId.trim() || notionPublishing}

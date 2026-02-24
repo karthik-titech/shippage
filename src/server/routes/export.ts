@@ -41,6 +41,24 @@ exportRouter.post("/", async (req, res) => {
   }
 });
 
+// GET /api/export/notion/pages
+// Returns pages accessible to the Notion integration (for parent page picker)
+exportRouter.get("/notion/pages", async (_req, res) => {
+  const notionToken = await getSecret("notionToken");
+  if (!notionToken) {
+    res.status(400).json({ error: "Notion not configured. Run `shippage init` to set it up." });
+    return;
+  }
+
+  try {
+    const pages = await notionClient.fetchParentPages(notionToken);
+    res.json({ pages });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch Notion pages.";
+    res.status(500).json({ error: message });
+  }
+});
+
 // POST /api/export/notion
 // Publish a release page to Notion under a parent page
 const notionPublishSchema = z.object({
