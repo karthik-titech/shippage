@@ -96,3 +96,42 @@ test("server responds to 127.0.0.1 (localhost) requests", async ({ request }) =>
   const res = await request.get(`${BASE}/api/csrf-token`);
   expect(res.ok()).toBe(true);
 });
+
+// ----------------------------------------------------------------
+// Integrations status includes new sources
+// ----------------------------------------------------------------
+test("GET /api/integrations/status includes gitlab and notion fields", async ({ request }) => {
+  const res = await request.get(`${BASE}/api/integrations/status`);
+  expect(res.status()).toBe(200);
+
+  const body = await res.json();
+  expect(body.integrations).toHaveProperty("gitlab");
+  expect(body.integrations).toHaveProperty("notion");
+  expect(body.integrations.gitlab).toHaveProperty("configured");
+  expect(body.integrations.notion).toHaveProperty("configured");
+  expect(typeof body.integrations.gitlab.configured).toBe("boolean");
+  expect(typeof body.integrations.notion.configured).toBe("boolean");
+});
+
+// ----------------------------------------------------------------
+// New export/notion endpoint requires CSRF
+// ----------------------------------------------------------------
+test("POST /api/export/notion without CSRF token is rejected with 403", async ({ request }) => {
+  const res = await request.post(`${BASE}/api/export/notion`, {
+    data: { releaseId: "00000000-0000-0000-0000-000000000000", parentPageId: "some-page" },
+  });
+  expect(res.status()).toBe(403);
+});
+
+// ----------------------------------------------------------------
+// New integration sources: missing PAT returns 400 not 500
+// ----------------------------------------------------------------
+test("GET /api/integrations/projects?source=gitlab without PAT returns 400", async ({ request }) => {
+  const res = await request.get(`${BASE}/api/integrations/projects?source=gitlab`);
+  expect(res.status()).toBe(400);
+});
+
+test("GET /api/integrations/projects?source=notion without PAT returns 400", async ({ request }) => {
+  const res = await request.get(`${BASE}/api/integrations/projects?source=notion`);
+  expect(res.status()).toBe(400);
+});

@@ -115,7 +115,7 @@ describe("Security: path validation", () => {
     expect(sanitizeDirectoryName("my-app v2.4")).toBe("my-app-v2.4");
     expect(sanitizeDirectoryName("../../../evil")).toBe("evil");
     expect(sanitizeDirectoryName("release<script>alert(1)</script>")).toBe(
-      "release-script-alert-1--script-"
+      "release-script-alert-1-script"
     );
   });
 });

@@ -48,6 +48,7 @@ export function validateTemplateFilePath(resolvedPath: string): boolean {
  */
 export function sanitizeDirectoryName(name: string): string {
   return name
+    .replace(/\.\./g, "") // Strip path traversal sequences before anything else
     .replace(/[^a-zA-Z0-9._-]/g, "-")
     .replace(/-+/g, "-")
     .slice(0, 100)

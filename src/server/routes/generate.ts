@@ -83,13 +83,18 @@ generateRouter.post("/", async (req, res) => {
         });
         break;
       }
-      case "gitlab":
+      case "gitlab": {
+        if (!projectId) {
+          res.status(400).json({ error: "projectId is required for GitLab." });
+          return;
+        }
         allTickets = await gitlabClient.fetchCompletedTickets(pat, {
           projectId,
           baseUrl: config.integrations.gitlab?.baseUrl,
           limit: 200,
         });
         break;
+      }
       case "notion":
         allTickets = await notionClient.fetchCompletedTickets(pat, {
           projectId,
