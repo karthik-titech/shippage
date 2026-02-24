@@ -86,7 +86,12 @@ export async function createServer(options?: { devMode?: boolean }): Promise<{
     // In dev mode, Vite serves the frontend. Just provide a health check.
     app.get("/", (_req, res) => res.json({ status: "dev mode — frontend at :5173" }));
   } else {
-    const clientDir = path.resolve(__dirname, "../../client");
+    // When compiled: __dirname = dist/server/ → ../../client = dist/client/ ✓
+    // When run via tsx from source: __dirname = src/server/ → resolve from cwd instead
+    const primaryClientDir = path.resolve(__dirname, "../../client");
+    const clientDir = fs.existsSync(primaryClientDir)
+      ? primaryClientDir
+      : path.resolve(process.cwd(), "dist/client");
 
     if (!fs.existsSync(clientDir)) {
       console.warn(
