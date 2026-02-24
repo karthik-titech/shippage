@@ -28,7 +28,7 @@ jobs:
 
       - name: Install system dependencies (keytar on Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y libsecret-1-dev
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -62,7 +62,7 @@ jobs:
           cache: pnpm
 
       - name: Install system dependencies (keytar on Linux)
-        run: sudo apt-get install -y libsecret-1-dev
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -107,8 +107,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: npm audit (no high/critical vulnerabilities allowed)
-        run: npm audit --audit-level=high
+      - name: pnpm audit (no high/critical vulnerabilities allowed)
+        run: pnpm audit --audit-level=high
         # NOTE: Do NOT add continue-on-error here.
         # Security failures must block the build.
 
