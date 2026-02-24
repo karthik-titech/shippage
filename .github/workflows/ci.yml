@@ -90,6 +90,8 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -114,9 +116,7 @@ jobs:
         # Only runs when SNYK_TOKEN is set in repo secrets.
         # Add it at: Settings → Secrets → Actions → SNYK_TOKEN
         # Until configured, npm audit (above) is the active security gate.
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
