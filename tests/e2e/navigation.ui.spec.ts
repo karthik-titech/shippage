@@ -25,10 +25,11 @@ test("/ renders the Dashboard with a heading", async ({ page }) => {
 
 test("Dashboard has a New Release button", async ({ page }) => {
   await page.goto("/");
-  // Either a link or button with text "New Release"
+  // Either a link or button with text "New Release" — use first() since
+  // both sidebar nav and main content may render a "New Release" link
   await expect(page.getByRole("link", { name: /new release/i }).or(
     page.getByRole("button", { name: /new release/i })
-  )).toBeVisible();
+  ).first()).toBeVisible();
 });
 
 // ----------------------------------------------------------------
@@ -57,11 +58,11 @@ test("/history renders the Release History page", async ({ page }) => {
 
 test("/history shows empty state with a Create link when no releases exist", async ({ page }) => {
   await page.goto("/history");
-  // Empty state has a "Create your first release" link (or similar)
-  // We check for either the empty state OR a list of releases — both are valid
+  // Dashboard shows "No releases yet" (all filter) or a list of releases — both are valid
   const hasEmptyState = await page.getByText(/no releases yet/i).isVisible().catch(() => false);
-  const hasReleases = await page.locator("[data-testid='release-row'], .divide-y > div").count() > 0;
-  expect(hasEmptyState || hasReleases).toBe(true);
+  const hasNoFilterReleases = await page.getByText(/no .+ releases/i).isVisible().catch(() => false);
+  const hasReleases = await page.locator("a[href^='/editor/'], a[href^='/releases/']").count() > 0;
+  expect(hasEmptyState || hasNoFilterReleases || hasReleases).toBe(true);
 });
 
 // ----------------------------------------------------------------
