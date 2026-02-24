@@ -79,6 +79,8 @@ export default function Setup() {
   const [companyName, setCompanyName] = useState("");
   const [brandColor, setBrandColor] = useState("#2563EB");
   const [defaultTemplate, setDefaultTemplate] = useState("minimal");
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [globalError, setGlobalError] = useState("");
@@ -182,6 +184,26 @@ export default function Setup() {
     setAnthropicStatus("ok");
   }
 
+  function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setLogoError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+    if (file.size > MAX_BYTES) {
+      setLogoError("Image is too large. Max size is 2 MB.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Only image files are supported.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setLogoDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
   async function savePreferences() {
     setSaving(true);
     try {
@@ -191,6 +213,7 @@ export default function Setup() {
           companyName: companyName || undefined,
           brandColor,
           defaultTemplate,
+          ...(logoDataUrl !== null ? { logoPath: logoDataUrl } : {}),
         },
       });
       setStep("done");
@@ -432,6 +455,47 @@ export default function Setup() {
                   <option value="changelog">Changelog — structured with badges</option>
                   <option value="feature-launch">Feature Launch — marketing hero</option>
                 </select>
+              </div>
+              <div>
+                <label className="label">Logo (optional)</label>
+                <div className="flex items-start gap-4">
+                  {logoDataUrl ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={logoDataUrl}
+                        alt="Logo preview"
+                        className="h-14 w-auto max-w-[120px] object-contain rounded border border-gray-200 bg-white p-1"
+                      />
+                      <button
+                        type="button"
+                        className="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-gray-800"
+                        onClick={() => setLogoDataUrl(null)}
+                        title="Remove logo"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-14 w-[120px] rounded border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-xs text-gray-400 shrink-0">
+                      No logo
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <label className="btn-secondary text-sm cursor-pointer inline-block">
+                      {logoDataUrl ? "Change logo" : "Upload logo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={handleLogoFile}
+                      />
+                    </label>
+                    <p className="text-xs text-gray-400 mt-1">PNG, SVG, or JPG. Max 2 MB.</p>
+                    {logoError && (
+                      <p className="text-xs text-red-600 mt-1">{logoError}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex justify-between">

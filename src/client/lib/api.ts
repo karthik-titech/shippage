@@ -130,6 +130,11 @@ export const generateApi = {
       method: "POST",
       json: { template },
     }),
+  regenerate: (releaseId: string, opts?: { customInstructions?: string }) =>
+    request<{ content: unknown; html: string; release: unknown }>(
+      `/api/generate/${releaseId}/regenerate`,
+      { method: "POST", json: opts ?? {} }
+    ),
 };
 
 // ----------------------------------------------------------------
@@ -149,6 +154,7 @@ export const releasesApi = {
   delete: (id: string) =>
     request<void>(`/api/releases/${id}`, { method: "DELETE" }),
   tickets: (id: string) => request<{ tickets: unknown[] }>(`/api/releases/${id}/tickets`),
+  history: (id: string) => request<{ history: unknown[] }>(`/api/releases/${id}/history`),
 };
 
 // ----------------------------------------------------------------

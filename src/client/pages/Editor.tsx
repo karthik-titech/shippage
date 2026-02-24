@@ -63,6 +63,9 @@ export default function Editor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rerendering, setRerendering] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [showRegeneratePanel, setShowRegeneratePanel] = useState(false);
+  const [regenerateInstructions, setRegenerateInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -192,12 +195,21 @@ export default function Editor() {
 
   async function handleRegenerate() {
     if (!id) return;
-    // CONFIRMATION: Regenerating overwrites all user edits
-    const confirmed = window.confirm(
-      "Regenerate will call the AI again and overwrite all your current edits. Continue?"
-    );
-    if (!confirmed) return;
-    navigate(`/new`);
+    setError(null);
+    setRegenerating(true);
+    setShowRegeneratePanel(false);
+    try {
+      const result = await generateApi.regenerate(id, {
+        customInstructions: regenerateInstructions.trim() || undefined,
+      });
+      setContent((result as { content: GeneratedReleasePage }).content);
+      setHtml((result as { html: string }).html);
+      setRegenerateInstructions("");
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : "Regeneration failed.");
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   if (loading) {
@@ -243,8 +255,17 @@ export default function Editor() {
           {saveSuccess && <span className="text-sm text-green-600">✓ Saved</span>}
           {saving && <span className="text-sm text-gray-500">Saving...</span>}
           {error && <span className="text-sm text-red-600">{error}</span>}
-          <button onClick={() => void handleRegenerate()} className="btn-ghost text-sm">
-            Regenerate
+          <button
+            onClick={() => setShowRegeneratePanel((v) => !v)}
+            className="btn-ghost text-sm"
+            disabled={regenerating}
+          >
+            {regenerating ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                Regenerating…
+              </span>
+            ) : "Regenerate"}
           </button>
           <button
             onClick={() => navigate(`/export/${release.id}`)}
@@ -255,8 +276,50 @@ export default function Editor() {
         </div>
       </div>
 
+      {/* Regenerate confirm panel */}
+      {showRegeneratePanel && (
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-4">
+          <p className="text-sm font-medium text-amber-800 mb-3">
+            Re-run AI generation using the original tickets. This will overwrite your current edits.
+          </p>
+          <div className="mb-3">
+            <label className="label text-xs text-amber-700">Custom instructions (optional)</label>
+            <textarea
+              className="input text-sm resize-none"
+              rows={2}
+              placeholder="e.g. Focus on developer-facing changes. Use a more concise tone."
+              value={regenerateInstructions}
+              onChange={(e) => setRegenerateInstructions(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => void handleRegenerate()}
+              className="btn-primary text-sm px-4"
+            >
+              Regenerate with AI
+            </button>
+            <button
+              onClick={() => { setShowRegeneratePanel(false); setRegenerateInstructions(""); }}
+              className="btn-ghost text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Split panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Regenerating overlay */}
+        {regenerating && (
+          <div className="absolute inset-0 z-10 bg-white/80 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-medium text-gray-700">Calling Claude…</p>
+            <p className="text-xs text-gray-400">This usually takes 5–15 seconds</p>
+          </div>
+        )}
+
         {/* Left: Structured editor */}
         <div className="w-1/2 overflow-y-auto p-6 border-r border-gray-200 bg-white">
           <div className="max-w-xl space-y-6">

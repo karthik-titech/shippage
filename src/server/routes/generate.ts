@@ -128,7 +128,8 @@ generateRouter.post("/", async (req, res) => {
   }
 
   // Create the release record
-  const projectName = projectId.split("/").pop() ?? projectId;
+  // Strip integration-specific prefixes (team:, project:) and path components
+  const projectName = projectId.replace(/^(team:|project:)/, "").split("/").pop() ?? projectId;
   const release = createRelease({
     projectName,
     version,
@@ -206,6 +207,113 @@ generateRouter.post("/", async (req, res) => {
       sectionsGenerated: generationResult.content.sections.length,
     },
   });
+});
+
+// POST /api/generate/:id/regenerate
+// Re-call the AI using the stored ticket snapshots for this release.
+// Overwrites generatedContent and generatedHtml.
+// Optional body: { customInstructions?: string }
+generateRouter.post("/:id/regenerate", async (req, res) => {
+  const { id } = req.params;
+
+  const bodyParsed = z
+    .object({ customInstructions: z.string().max(1000).optional() })
+    .safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: "Invalid request body." });
+    return;
+  }
+  const { customInstructions } = bodyParsed.data;
+
+  const { getRelease, getTicketsForRelease } = await import("../db/queries.js");
+  const release = getRelease(id);
+  if (!release) {
+    res.status(404).json({ error: "Release not found." });
+    return;
+  }
+
+  const anthropicKey = await getSecret("anthropicKey");
+  if (!anthropicKey) {
+    res.status(400).json({ error: "Anthropic API key not configured." });
+    return;
+  }
+
+  const snapshots = getTicketsForRelease(id);
+  if (snapshots.length === 0) {
+    res.status(400).json({ error: "No ticket snapshots found for this release. Cannot regenerate." });
+    return;
+  }
+
+  const config = readConfig();
+
+  // Reconstruct NormalizedTicket[] from stored snapshots.
+  // linkedFigma/linkedLoom can't be recovered without original rawData,
+  // but title + description + labels give Claude enough context.
+  const tickets: NormalizedTicket[] = snapshots.map((s) => ({
+    externalId: s.externalId,
+    source: s.source,
+    title: s.title,
+    description: s.description,
+    labels: s.labels,
+    assignee: s.assignee,
+    status: s.status,
+    url: s.url,
+    completedAt: null,
+    linkedPRs: [],
+    linkedFigma: [],
+    linkedLoom: [],
+    rawData: {},
+  }));
+
+  let generationResult;
+  try {
+    generationResult = await generateReleasePage({
+      tickets,
+      version: release.version,
+      preferences: {
+        companyName: config.preferences.companyName,
+        brandColor: config.preferences.brandColor,
+        customInstructions,
+      },
+      model: config.ai.model,
+      apiKey: anthropicKey,
+    });
+  } catch (err) {
+    logGeneration(id, {
+      promptHash: "error",
+      modelUsed: config.ai.model,
+      tokensInput: 0,
+      tokensOutput: 0,
+      durationMs: 0,
+      success: false,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
+    const message = err instanceof Error ? err.message : "AI generation failed.";
+    res.status(500).json({ error: message });
+    return;
+  }
+
+  logGeneration(id, { ...generationResult.metadata, success: true });
+
+  const html = renderTemplate(release.templateUsed, {
+    headline: generationResult.content.headline,
+    intro: generationResult.content.intro,
+    sections: generationResult.content.sections,
+    cta: generationResult.content.cta,
+    brandColor: config.preferences.brandColor ?? "#2563EB",
+    companyName: config.preferences.companyName ?? "",
+    logoUrl: config.preferences.logoPath ?? null,
+    version: release.version,
+    date: release.createdAt,
+    footer: config.preferences.pageFooter ?? null,
+  });
+
+  const updated = updateRelease(id, {
+    generatedContent: generationResult.content,
+    generatedHtml: html,
+  });
+
+  res.json({ content: generationResult.content, html, release: updated });
 });
 
 // POST /api/generate/:id/rerender

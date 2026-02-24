@@ -61,7 +61,7 @@ export default function Dashboard() {
           <div className="text-4xl mb-4">🚀</div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">No releases yet</h2>
           <p className="text-gray-500 mb-6">
-            Connect your Linear, GitHub, or Jira and generate your first release page.
+            Connect Linear, GitHub, GitLab, Jira, or Notion and generate your first release page.
           </p>
           <Link to="/new" className="btn-primary">
             Create your first release →

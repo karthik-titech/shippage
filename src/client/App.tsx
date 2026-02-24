@@ -32,6 +32,7 @@ export default function App() {
           <Route path="/edit/:id" element={<Editor />} />
           <Route path="/export/:id" element={<Export />} />
           <Route path="/history" element={<History />} />
+          <Route path="/history/:id" element={<History />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

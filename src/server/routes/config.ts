@@ -25,6 +25,12 @@ configRouter.get("/", async (_req, res) => {
           jira: config.integrations.jira
             ? { ...config.integrations.jira, configured: secretStatus.jira }
             : { configured: false },
+          gitlab: config.integrations.gitlab
+            ? { ...config.integrations.gitlab, configured: secretStatus.gitlab }
+            : { configured: false },
+          notion: config.integrations.notion
+            ? { ...config.integrations.notion, configured: secretStatus.notion }
+            : { configured: false },
         },
         ai: {
           provider: config.ai.provider,
@@ -43,7 +49,7 @@ configRouter.get("/", async (_req, res) => {
 // Save a secret to the OS keychain (or config fallback)
 // NEVER log or echo back the secret value
 const secretsSchema = z.object({
-  key: z.enum(["linearPat", "githubPat", "jiraPat", "anthropicKey"]),
+  key: z.enum(["linearPat", "githubPat", "jiraPat", "gitlabPat", "notionToken", "anthropicKey"]),
   value: z.string().min(1, "Secret value cannot be empty."),
 });
 
@@ -89,6 +95,17 @@ const updateConfigSchema = z.object({
           apiType: z.enum(["cloud", "server"]),
         })
         .optional(),
+      gitlab: z
+        .object({
+          baseUrl: z.string().url().optional(),
+          defaultGroupId: z.string().optional(),
+        })
+        .optional(),
+      notion: z
+        .object({
+          defaultDatabaseId: z.string().optional(),
+        })
+        .optional(),
     })
     .optional(),
   preferences: z
@@ -129,6 +146,12 @@ configRouter.patch("/", (req, res) => {
           : {}),
         ...(parsed.data.integrations?.jira
           ? { jira: { ...current.integrations.jira, ...parsed.data.integrations.jira } }
+          : {}),
+        ...(parsed.data.integrations?.gitlab
+          ? { gitlab: { ...current.integrations.gitlab, ...parsed.data.integrations.gitlab } }
+          : {}),
+        ...(parsed.data.integrations?.notion
+          ? { notion: { ...current.integrations.notion, ...parsed.data.integrations.notion } }
           : {}),
       },
       preferences: { ...current.preferences, ...parsed.data.preferences },
