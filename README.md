@@ -397,7 +397,21 @@ The output file is a valid HTML5 document. It:
 
 ---
 
+## Before you start
+
+ShipPage uses Claude (Anthropic's AI) to write the release copy. You need an API key — it takes 2 minutes to get one.
+
+1. Go to **[console.anthropic.com](https://console.anthropic.com)** → sign up or log in
+2. Click **API Keys** → **Create Key** → copy it
+3. You'll paste it into ShipPage's setup wizard on first run
+
+> **Cost:** generating a release page uses ~$0.01–0.05 of API credit depending on the number of tickets. There's no subscription — you pay Anthropic directly for what you use.
+
+---
+
 ## Quick Start
+
+**Requirements:** Node.js ≥ 18 · An Anthropic API key (see above)
 
 ```bash
 # Run directly (no install needed)
@@ -408,9 +422,7 @@ npm install -g shippage
 shippage
 ```
 
-**Requirements:** Node.js ≥ 18 · An [Anthropic API key](https://console.anthropic.com)
-
-On first run, ShipPage walks you through setup. After that:
+On first run, the setup wizard asks for your API key and issue tracker credentials. After that:
 
 ```bash
 shippage          # Start server + open UI
