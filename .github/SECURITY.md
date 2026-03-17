@@ -4,7 +4,7 @@
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Report vulnerabilities by emailing: security@shippage.dev
+Report vulnerabilities: @karthashok008 on X
 
 Please include:
 - Description of the vulnerability
